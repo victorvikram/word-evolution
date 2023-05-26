@@ -19,17 +19,30 @@ import word_counting as wc
 import display as d
 import load_data as ld
 
+def group_windows(winds, group_size):
+    grouped_winds = []
+    curr_group = []
+
+    for i, wind in enumerate(winds):
+        curr_group.append(wind)
+        if i % group_size == group_size - 1:
+            grouped_winds.append(curr_group)
+            curr_group = []
+    
+    return grouped_winds 
+
 """
 Dict(String: Int) List(List(String)) Series Dict(String <> Int) Int Int -> Arr(len(words)*np.unique(window_col), top_m)
 Creates an array where each row corresponds to a window-word, and each col corresponds to a word. Arr[i, j] is the probability
 that a given word in the context of window-word i is word j. So each row is a distribution around a particular focal word
 in a given window of time. 
 """
-def genWordWindowContextDistribs(cat, focal_word_dict, wordcount_window, frame=10, top_m=30000, common_sample=None, symmetric=False, parallel=True):
+def genWordWindowContextDistribs(cat, focal_word_dict, wordcount_window, frame=10, top_m=30000, common_sample=None, symmetric=False, parallel=True, group_length=1):
     winds = ld.get_keys_for_name(os.path.join("objects", f"{cat}"), f"{cat}_speech_dict", int)
 
-              
-    inputs = [(cat, focal_word_dict, wordcount_window[wind], wind, frame, top_m, common_sample, symmetric) for wind in winds]
+    grouped_winds = group_windows(winds, group_length)
+
+    inputs = [(cat, focal_word_dict, wordcount_window[wind_group,:].sum(axis=0), wind_group, frame, top_m, common_sample, symmetric) for wind_group in grouped_winds]
     inputs = sorted(inputs, key=lambda x: x[3])
 
     if parallel:
@@ -50,14 +63,21 @@ def genWordWindowContextDistribs(cat, focal_word_dict, wordcount_window, frame=1
     
     return word_context_pcts, word_context_pctvar, word_context_counts, word_context_variances, focal_word_dict
 
-def gen_window_context_distrib(cat, focal_word_dict, wordcount_window, wind, frame=10, top_m=30000, common_sample=None, symmetric=False):
+def gen_window_context_distrib(cat, focal_word_dict, wordcount_window, winds, frame=10, top_m=30000, common_sample=None, symmetric=False):
     # gets the index of the context word
-    num_words = len(focal_word_dict)
-    num_context_words = top_m if symmetric is False else num_words
+    if isinstance(winds, int):
+        winds = [winds]
 
-    word_context_counts = np.zeros((num_words, num_context_words))
+    arr_rows = max(focal_word_dict.values()) + 1
+    num_context_words = top_m if symmetric is False else arr_rows
 
-    speech_list = ld.read_by_key(f"{cat}_speech_dict", wind, os.path.join("objects", cat))
+    word_context_counts = np.zeros((arr_rows, num_context_words))
+
+    speech_list = []
+    speech_dict = ld.read_one_by_one(f"{cat}_speech_dict", keys=winds, parent=os.path.join("objects", cat))
+    
+    for speech_list_segment in speech_dict.values():
+        speech_list += speech_list_segment 
 
     def context_word_ind(word):
         if symmetric:
@@ -71,7 +91,7 @@ def gen_window_context_distrib(cat, focal_word_dict, wordcount_window, wind, fra
     num_speeches = len(speech_list)
     for j, speech in enumerate(speech_list):
         if j % 100000 == 0:
-            print(f"{wind}: {j}/{num_speeches}")
+            print(f"{winds}: {j}/{num_speeches}")
         
         current_context = []
 
@@ -132,15 +152,18 @@ Returns an unrolled array with each row corresponding to the distribution of the
 word. The first returned dict is the focal word dictionary, the second one is the dictionary of context words (which may be equal to the focal word dictionary
 if [symmetric] is True
 """
-def genWordWindowContextDistribsSpecific(words, list_of_speech_lists, window_col, sorted_word_dict, window_dict, wordcount_window, frame=10, top_m=30000, sample_equally=False, min_count=None, symmetric=False):
+def genWordWindowContextDistribsSpecific(words, list_of_speech_lists, window_col, sorted_word_dict, window_dict, wordcount_window, frame=10, top_m=30000, sample_equally=False, min_count=None, common_sample=None, symmetric=False):
     if sample_equally:
         word_list = [word for word in words if isinstance(word, str)]
-        common_sample, _, indices_to_remove = getLeastCommonWordWindow(wordcount_window, sorted_word_dict, words_of_interest=word_list, min_threshold=min_count)
+        pot_common_sample, _, indices_to_remove = getLeastCommonWordWindow(wordcount_window, sorted_word_dict, words_of_interest=word_list, min_threshold=min_count)
         # print(least_common_word)
         # print(indices_to_remove)
+        print(pot)
+        if common_sample is None:
+            common_sample = pot_common_sample
     else:
         indices_to_remove = []
-        common_sample = None
+
     
     focal_word_dict = {word: ind for word, ind in words.items() if ind not in indices_to_remove}
     focal_word_dict.update({ind: focal_word for focal_word, ind in words.items()})
@@ -162,19 +185,22 @@ Returns an unrolled array with each row corresponding to the distribution of the
 word. The first returned dict is the focal word dictionary, the second one is the dictionary of context words (which may be equal to the focal word dictionary
 if [symmetric] is True
 """
-def genWordWindowContextDistribsStartToEnd(cat, frame=10, start_ind=0, end_ind=3000, top_m=30000, sample_equally=True, min_count=None, symmetric=False):
+def genWordWindowContextDistribsStartToEnd(cat, frame=10, start_ind=0, end_ind=3000, top_m=30000, sample_equally=False, min_count=None, common_sample=None, symmetric=False, group_length=1):
     wordcount_window, sorted_word_dict, _ = ld.load_counts(cat)
     if sample_equally:
-        common_sample, _, indices_to_remove = getLeastCommonWordWindow(wordcount_window, sorted_word_dict, words_of_interest=None, start_ind=start_ind, end_ind=end_ind, min_threshold=min_count)
+        pot_common_sample, _, indices_to_remove = getLeastCommonWordWindow(wordcount_window, sorted_word_dict, words_of_interest=None, start_ind=start_ind, end_ind=end_ind, min_threshold=min_count, group_length=group_length)
+        if common_sample is None:
+            common_sample = pot_common_sample
     else:
         indices_to_remove = []
         common_sample = None
     
+    print("indices to remove", indices_to_remove)
     added_counter = -1
-    focal_word_dict = {i: (added_counter := added_counter + 1) for i in range(start_ind, end_ind) if i - start_ind not in indices_to_remove}
+    focal_word_dict = {i: i for i in range(start_ind, end_ind) if i - start_ind not in indices_to_remove}
     print("focal word dict", focal_word_dict, indices_to_remove)
 
-    return genWordWindowContextDistribs(cat, focal_word_dict, wordcount_window, frame, top_m, common_sample, symmetric)
+    return genWordWindowContextDistribs(cat, focal_word_dict, wordcount_window, frame, top_m, common_sample, symmetric, parallel=True, group_length=group_length)
 
 """
 co-occurs within [frame] words (adjacent words are 1 word away, and so on...) For a frame of 3, then, we would include focal_word x x context_word
@@ -713,8 +739,10 @@ all words that don't always meet that min_threshold.
 
 Returns the count of that word-window, the word it corresponds to, and the window index of that word-window
 """
-def getLeastCommonWordWindow(wordcount_window_arr, word_dict, words_of_interest=None, start_ind=None, end_ind=None, min_threshold=None):
+def getLeastCommonWordWindow(wordcount_window_arr, word_dict, words_of_interest=None, start_ind=None, end_ind=None, min_threshold=None, group_length=1):
     min_word_count = float("inf")
+    grouped_winds = group_windows(range(wordcount_window_arr.shape[0]), group_length)
+    wordcount_window_arr = wordcount_window_arr[grouped_winds,:].sum(axis=1) # this collapses the wordcount window into groupings
 
     if words_of_interest is not None:
         word_indices = [word_dict[word] for word in words_of_interest]

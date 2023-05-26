@@ -101,7 +101,7 @@ def get_less_frequent_more_consistent_words_score(wordpresence_pct_spch, wordpre
 # if top_m is not none, then we only count the top_m words as determined by a random sample of speeches
 # **tested**
 def get_wordcount_arr(speech_list_dict, word_dict=None, top_m=None, parallel=False, already_numbers=False):
-    if word_dict is None:
+    if word_dict is None and not already_numbers:
         word_dict, _ = makeWordDict(speech_list_dict, top_m=top_m)
     
     if not already_numbers:

@@ -15,6 +15,15 @@ tqdm.pandas()
 
 from nltk.util import ngrams
 
+def generate_random_speeches(winds, word_dist, wordpspeech, speechpwind):
+    # word_dist = [6/20, 5/20, 4/20, 3/20, 2/20]
+    speeches = {
+        wind: [np.random.choice(range(len(word_dist)), (wordpspeech,), p=word_dist) for j in range(speechpwind)] 
+            for wind in range(winds)
+    }
+    
+    return speeches
+
 def generate_sample_data(manyWindows=False):
     data_dict = {
         "chamber": ["S", "H", "S", "S", "S", "H", 
@@ -62,7 +71,6 @@ def generate_sample_data(manyWindows=False):
                                                                    top_m=50000)
 
     return speeches, speech_list_dict, wordcount_window, word_dict, window_dict
-
 
 """
 String -> String

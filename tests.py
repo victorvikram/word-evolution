@@ -4,6 +4,7 @@ import sparse
 import numpy as np
 import context_distribs as cd
 import process_speeches as ps
+import context_wrangling as cw
 import word_counting as wc
 import load_data as ld
 import distances as dist
@@ -424,7 +425,16 @@ class TestContextDistribs(unittest.TestCase):
                             for tup in candidate_tuples:
                                    self.assertIn(tup, pair_dict)
 
-       def test_word_window_context_distribs(self):  
+       def test_group_windows(self):
+              winds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+              self.assertEqual([[1, 2, 3],[4, 5, 6],[7, 8, 9]], cd.group_windows(winds, 3))
+              self.assertEqual([[1, 2, 3, 4], [5, 6, 7, 8]], cd.group_windows(winds, 4))
+              self.assertEqual([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]], cd.group_windows(winds, 5))
+              self.assertEqual([[1, 2, 3, 4, 5, 6]], cd.group_windows(winds, 6))
+              self.assertEqual([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]], cd.group_windows(winds, 2))
+              self.assertEqual([[1], [2], [3], [4], [5], [6], [7], [8], [9], [10]], cd.group_windows(winds, 1))
+
+       def test_word_window_context_distribs(self):
               speech_dict = {20: [np.array([0,1,0,3,2,2,3,4], dtype=np.uint16), np.array([3,3,4,0,3], dtype=np.uint16), np.array([2], dtype=np.uint16), np.array([5, 5], dtype=np.uint16)], 
                              21: [np.array([1,2,0,2,2], dtype=np.uint16), np.array([4,1,0], dtype=np.uint16), np.array([0], dtype=np.uint16), np.array([5, 5], dtype=np.uint16)]}
               
@@ -448,10 +458,12 @@ class TestContextDistribs(unittest.TestCase):
               self.assertTrue((context_counts == expected_counts).all())
 
               expected_counts = np.array(
-                     [[[2, 0, 0, 1, 0],
+                     [[[0, 0, 0, 0, 0],
+                       [2, 0, 0, 1, 0],
                        [1, 0, 2, 4, 1],
                        [3, 1, 4, 2, 4]],
-                      [[2, 0, 1, 0, 1],
+                      [[0, 0, 0, 0, 0],
+                       [2, 0, 1, 0, 1],
                        [3, 1, 4, 0, 0],
                        [0, 0, 0, 0, 0]]]
               )
@@ -459,10 +471,14 @@ class TestContextDistribs(unittest.TestCase):
               self.assertTrue((context_counts == expected_counts).all())
 
               expected_counts = np.array(
-                     [[[1, 0, 2],
+                     [[[0, 0, 0],
+                       [0, 0, 0],
+                       [1, 0, 2],
                        [3, 1, 4],
                        [1, 0, 1]],
-                      [[3, 1, 4],
+                      [[0, 0, 0],
+                       [0, 0, 0],
+                       [3, 1, 4],
                        [0, 0, 0],
                        [1, 1, 0]]]
               )
@@ -471,37 +487,56 @@ class TestContextDistribs(unittest.TestCase):
               self.assertTrue((context_counts == expected_counts).all())
 
               expected_counts = np.array(
-                     [[[2, 4, 1],
-                       [4, 2, 4],
-                       [1, 4, 0]],
-                      [[4, 0, 0],
-                       [0, 0, 0],
-                       [0, 0, 0]]]
+                     [[[0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 2, 4, 1],
+                       [0, 0, 4, 2, 4],
+                       [0, 0, 1, 4, 0]],
+                      [[0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 4, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0]]]
               )
               context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext", 2, start_ind=2, end_ind=5, top_m=3, sample_equally=False, symmetric=True)
               self.assertTrue((context_counts == expected_counts).all())
 
               expected_counts = np.array(
                      [[[2, 2, 1, 3, 1],
+                       [0, 0, 0, 0, 0],
                        [1, 0, 2, 4, 1]],
                       [[0, 2, 3, 0, 1],
+                       [0, 0, 0, 0, 0],
                        [3, 1, 4, 0, 0]]]
               )
               context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext", 2, start_ind=0, end_ind=5, top_m=5, sample_equally=True, min_count=2, symmetric=False)
               self.assertTrue((context_counts == expected_counts).all())
 
               expected_counts = np.array(
-                     [[[2, 1],
-                       [1, 2]],
-                      [[0, 3],
-                       [3, 4]]]
+                     [[[2, 0, 1],
+                       [0, 0, 0],
+                       [1, 0, 2]],
+                      [[0, 0, 3],
+                       [0, 0, 0],
+                       [3, 0, 4]]]
               )
+
               context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext", 2, start_ind=0, end_ind=5, top_m=5, sample_equally=True, min_count=2, symmetric=True)
               self.assertTrue((context_counts == expected_counts).all())
 
               expected_counts = np.array(
-                     [[[0, 0, 0, 0, 0, 2]],
-                      [[0, 0, 0, 0, 0, 2]]]
+                     [[[0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 2]],
+                      [[0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 2]]]
               )
 
               context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext", 2, start_ind=5, end_ind=6, top_m=6, sample_equally=False, symmetric=False)
@@ -509,17 +544,22 @@ class TestContextDistribs(unittest.TestCase):
 
               expected_counts = np.array(
                      [[[2, 2, 1, 3, 1, 0],
+                       [0, 0, 0, 0, 0, 0],
                        [1, 0, 2, 4, 1, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0, 2]],
                       [[0, 2, 3, 0, 1, 0],
+                       [0, 0, 0, 0, 0, 0],
                        [3, 1, 4, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0, 2]]]
               )
 
               context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext", 2, start_ind=0, end_ind=6, top_m=6, sample_equally=True, min_count=1, symmetric=False)
               self.assertEqual(context_counts.shape, expected_counts.shape)
-
-              self.assertTrue((context_counts[:,2,:] == expected_counts[:,2,:]).all())
+              self.assertTrue((context_counts[:,5,:] == expected_counts[:,5,:]).all())
               self.assertTrue((context_counts <= expected_counts).all())
 
 
@@ -551,22 +591,167 @@ class TestContextDistribs(unittest.TestCase):
               self.assertTrue((np.abs(np.nan_to_num(context_counts / context_counts.sum(axis=2, keepdims=True), nan=0) - np.nan_to_num(context_pcts, nan=0)) < 0.000001).all())
 
               expected_counts = np.array(
-                     [[[0, 3, 2],
-                       [3, 2, 1],
-                       [2, 1, 0]],
-                      [[0, 1, 3],
-                       [1, 2, 2],
-                       [3, 2, 0]]]
+                     [[[0, 0, 3, 0, 0, 2],
+                       [0, 0, 0, 0, 0, 0],
+                       [3, 0, 2, 0, 0, 1],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [2, 0, 1, 0, 0, 0]],
+                      [[0, 0, 1, 0, 0, 3],
+                       [0, 0, 0, 0, 0, 0],
+                       [1, 0, 2, 0, 0, 2],
+                       [0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0],
+                       [3, 0, 2, 0, 0, 0]]]
               )
 
-              
-
               context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext", 1, start_ind=0, end_ind=6, top_m=6, sample_equally=True, symmetric=True, min_count=2)
+              print(context_counts)
               self.assertTrue((context_counts <= expected_counts).all())
-              self.assertTrue((context_counts[:,1,:] <= expected_counts[:,1,:]).all())
+              self.assertTrue((context_counts[:,0,:] <= expected_counts[:,0,:]).all())
               self.assertTrue((context_counts[:,2,:] <= expected_counts[:,2,:]).all())
-              self.assertTrue((context_counts / context_counts.sum(axis=-1, keepdims=True) == context_pcts).all())
-       
+              assert_array_almost_equal(context_counts / context_counts.sum(axis=-1, keepdims=True), context_pcts)
+              
+              speech_dict = {20: [np.array([0, 0, 0, 3, 4, 3, 4, 3, 2], dtype=np.uint16), np.array([2, 4, 2, 4, 3, 3])], 
+                             21: [np.array([3, 3, 3, 4, 4, 4], dtype=np.uint16), np.array([0, 0, 0, 3, 3, 3, 2, 4, 4], dtype=np.uint16)]}
+              
+              wordcount_window, word_dict, window_dict = wc.get_wordcount_arr(speech_dict, already_numbers=True)
+              ld.dump_counts(wordcount_window, word_dict, window_dict, "testcontext", os.path.join("objects", "testcontext"))
+              ld.dump_one_by_one(speech_dict, "testcontext_speech_dict", os.path.join("objects", "testcontext"), window_dict=window_dict)
+
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext", 1, start_ind=1, end_ind=5, top_m=6, sample_equally=True, min_count=1)
+              print(foc_dict)
+              print(context_counts)
+              self.assertEqual(context_counts.shape, (2, 5, 6))
+              self.assertTrue((context_counts[:,2,:] == 0).all())
+              self.assertTrue((context_counts[:,[0, 1],:] == 0).all())
+              print(context_counts) 
+
+              speech_dict = ps.generate_random_speeches(4, [6/20, 5/20, 4/20, 3/20, 2/20], 1000, 200)
+              wordcount_window, word_dict, window_dict = wc.get_wordcount_arr(speech_dict, already_numbers=True)
+              ld.dump_counts(wordcount_window, word_dict, window_dict, "testcontext2", os.path.join("objects", "testcontext2"))
+              ld.dump_one_by_one(speech_dict, "testcontext2_speech_dict", os.path.join("objects", "testcontext2"), window_dict=window_dict)
+
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext2", 5, start_ind=0, end_ind=5, top_m=5, sample_equally=True, min_count=35000, common_sample=10000)
+
+              expected_totals = np.ones((4, 3))*100000
+              totals = context_counts.sum(axis=-1)
+
+              print(totals)
+              self.assertTrue((np.abs(expected_totals - totals) < 7500).all())
+
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext2", 5, start_ind=0, end_ind=5, top_m=5, sample_equally=True, min_count=70000, group_length=2)
+              expected_totals = np.ones((2, 3))*800000
+              totals = context_counts.sum(axis=-1)
+
+              print(totals)
+              self.assertTrue((np.abs(expected_totals - totals) < 8000).all())
+
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext2", 5, start_ind=0, end_ind=5, top_m=5, sample_equally=True, min_count=35000)
+              expected_totals = np.ones((4, 3))*400000
+              totals = context_counts.sum(axis=-1)
+
+              print(totals)
+              self.assertTrue((np.abs(expected_totals - totals) < 7500).all())
+
+              
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext2", 5, start_ind=0, end_ind=5, top_m=5, sample_equally=False, min_count=35000)
+              expected_totals = np.ones((4, 5))*np.array([[600000, 500000, 400000, 300000, 200000]])
+              print(expected_totals)
+              totals = context_counts.sum(axis=-1)
+
+              print(totals)
+              self.assertTrue((np.abs(expected_totals - totals) < 10000).all())
+              
+              speech_dict = {20: [np.array([0,1,0,3,2,2,3,4], dtype=np.uint16), np.array([3,3,4,0,3], dtype=np.uint16), np.array([2], dtype=np.uint16), np.array([5, 5], dtype=np.uint16)], 
+                             21: [np.array([1,2,0,2,2], dtype=np.uint16), np.array([4,1,0], dtype=np.uint16), np.array([0], dtype=np.uint16), np.array([5, 5], dtype=np.uint16)],
+                             22: [np.array([1, 2], dtype=np.uint16), np.array([3, 4], dtype=np.uint16)],
+                             23: [np.array([1, 3], dtype=np.uint16), np.array([2, 4], dtype=np.uint16)],
+                             24: [np.array([1, 4], dtype=np.uint16), np.array([2, 3], dtype=np.uint16)]}
+              
+              wordcount_window, word_dict, window_dict = wc.get_wordcount_arr(speech_dict, already_numbers=True)
+              ld.dump_counts(wordcount_window, word_dict, window_dict, "testcontext3", os.path.join("objects", "testcontext3"))
+              ld.dump_one_by_one(speech_dict, "testcontext3_speech_dict", os.path.join("objects", "testcontext3"), window_dict=window_dict)
+
+              expected_counts = np.array(
+                     [[[2, 2, 1, 3, 1],
+                       [2, 0, 0, 1, 0],
+                       [1, 0, 2, 4, 1],
+                       [3, 1, 4, 2, 4],
+                       [1, 0, 1, 4, 0]],
+                      [[0, 2, 3, 0, 1],
+                       [2, 0, 1, 0, 1],
+                       [3, 1, 4, 0, 0],
+                       [0, 0, 0, 0, 0],
+                       [1, 1, 0, 0, 0]],
+                      [[0, 0, 0, 0, 0],
+                       [0, 0, 1, 0, 0],
+                       [0, 1, 0, 0, 0],
+                       [0, 0, 0, 0, 1],
+                       [0, 0, 0, 1, 0]],
+                      [[0, 0, 0, 0, 0],
+                       [0, 0, 0, 1, 0],
+                       [0, 0, 0, 0, 1],
+                       [0, 1, 0, 0, 0],
+                       [0, 0, 1, 0, 0]],
+                      [[0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 1],
+                       [0, 0, 0, 1, 0],
+                       [0, 0, 1, 0, 0],
+                       [0, 1, 0, 0, 0]]]
+              )
+              
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext3", 2, start_ind=0, end_ind=5, top_m=5)
+              print(context_counts)
+              self.assertTrue((context_counts == expected_counts).all())
+
+              expected_counts = np.array([[[2, 4, 4, 3, 2],
+                                           [4, 0, 1, 1, 1],
+                                           [4, 1, 6, 4, 1],
+                                           [3, 1, 4, 2, 4],
+                                           [2, 1, 1, 4, 0]],
+                                          [[0, 0, 0, 0, 0],
+                                           [0, 0, 1, 1, 0],
+                                           [0, 1, 0, 0, 1],
+                                           [0, 1, 0, 0, 1],
+                                           [0, 0, 1, 1, 0]]])
+
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext3", 2, start_ind=0, end_ind=5, top_m=5, group_length=2)
+              self.assertTrue((context_counts == expected_counts).all())
+
+              expected_counts = np.array([[[2, 4, 4, 3, 2],
+                                           [4, 0, 2, 1, 1],
+                                           [4, 2, 6, 4, 1],
+                                           [3, 1, 4, 2, 5],
+                                           [2, 1, 1, 5, 0]]])
+              
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext3", 2, start_ind=0, end_ind=5, top_m=5, group_length=3)
+              print(expected_counts)
+              self.assertTrue((context_counts == expected_counts).all())
+
+              expected_counts = np.array([[[2, 4, 4, 3, 2],
+                                           [4, 0, 2, 2, 2],
+                                           [4, 2, 6, 5, 2],
+                                           [3, 2, 5, 2, 5],
+                                           [2, 2, 2, 5, 0]]])
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext3", 2, start_ind=0, end_ind=5, top_m=5, group_length=5)
+              self.assertTrue((context_counts == expected_counts).all())
+
+              speech_dict = {20: [np.array([0, 0, 0], dtype=np.uint16), np.array([1, 1, 1], dtype=np.uint16), np.array([3, 3], dtype=np.uint16), np.array([4, 4], dtype=np.uint16),], 
+                             21: [np.array([0, 0, 1], dtype=np.uint16), np.array([2, 2, 2], dtype=np.uint16), np.array([3], dtype=np.uint16)],
+                             22: [np.array([1, 1, 1], dtype=np.uint16), np.array([2, 1, 1], dtype=np.uint16), np.array([3, 3], dtype=np.uint16), np.array([4, 4, 4], dtype=np.uint16)],
+                             23: [np.array([1, 1, 2], dtype=np.uint16), np.array([0, 0, 0], dtype=np.uint16), np.array([3], dtype=np.uint16)]}
+              
+              wordcount_window, word_dict, window_dict = wc.get_wordcount_arr(speech_dict, already_numbers=True)
+              ld.dump_counts(wordcount_window, word_dict, window_dict, "testcontext4", os.path.join("objects", "testcontext4"))
+              ld.dump_one_by_one(speech_dict, "testcontext4_speech_dict", os.path.join("objects", "testcontext4"), window_dict=window_dict)
+
+              context_pcts, context_pctvar, context_counts, context_variances, foc_dict = cd.genWordWindowContextDistribsStartToEnd("testcontext4", 1, start_ind=0, end_ind=4, top_m=5, group_length=2, sample_equally=True, min_count=2)
+              print(context_counts)
+              self.assertEqual(context_counts.shape, (2, 4, 5))
+
+
+
        def test_compile_list_of_changes(self):
               contexts = np.array([[[0.5, 0.1, 0.4],
                                     [0.3, 0.4, 0.3]],
@@ -629,9 +814,96 @@ class TestContextDistribs(unittest.TestCase):
               projection_mags = dist.calc_projections(before_arr, after_arr)
 
               self.assertTrue((projection_mags == expected_projection_mags).all())
+       
+       def test_sample_contexts_wind(self):
+              speech_dict = {0: [np.array([0,1,0,3], dtype=np.uint16), np.array([3,3,2], dtype=np.uint16), np.array([2, 2, 3, 0, 1, 2], dtype=np.uint16), np.array([1, 2, 3, 2, 1], dtype=np.uint16)]}
+              
+              ld.dump_one_by_one(speech_dict, "testsamplecontexts_speech_dict", os.path.join("objects", "testsamplecontexts"))
 
+              possible_contexts = np.array([[0, 1, 0],
+                                            [1, 0, 3],
+                                            [3, 3, 2],
+                                            [2, 2, 3],
+                                            [2, 3, 0],
+                                            [3, 0, 1],
+                                            [0, 1, 2],
+                                            [1, 2, 3],
+                                            [2, 3, 2],
+                                            [3, 2, 1]])
+              
+              contexts = cw.sample_contexts_wind("testsamplecontexts", 0, 3, samples=18000)
+              contexts = contexts.reshape(-1, 1, 3)
+              possible_contexts = possible_contexts.reshape(1, -1, 3)
+              print(contexts.shape)
+              print(possible_contexts.shape)
+              context_counts = (contexts == possible_contexts).all(axis=-1)
+              self.assertEqual(context_counts.sum(), 18000)
+              self.assertTrue((context_counts.sum(axis=1) == np.ones((18000,))).all())
+
+              contexts_0 = np.array([[[0, 1, 0],
+                                      [1, 0, 3]]])
+              contexts_1 = np.array([[[3, 3, 2]]])
+              contexts_2 = np.array([[[2, 2, 3],
+                                      [2, 3, 0],
+                                      [3, 0, 1],
+                                      [0, 1, 2]]])
+              contexts_3 = np.array([[[1, 2, 3],
+                                      [2, 3, 2],
+                                      [3, 2, 1]]])
+              all_poss_contexts = [contexts_0, contexts_1, contexts_2, contexts_3]
+              lengths = [4, 3, 6, 5]
+
+              for poss_context, length in zip(all_poss_contexts, lengths):
+                     print(poss_context, length)
+                     context_count = (contexts == poss_context).all(axis=-1).sum(axis=0)
+                     overall_count = context_count.sum()
+                     expectation = length * 1000
+                     self.assertLess(overall_count, expectation + 200) # PROB
+                     self.assertGreater(overall_count, expectation - 200) # PROB
+                     print(poss_context, length, context_count, expectation, overall_count)
+
+                     num_contexts = poss_context.shape[1]
+
+                     self.assertTrue((context_count < (overall_count / num_contexts) + 100).all())
+                     self.assertTrue((context_count > (overall_count / num_contexts) - 100).all())
+       
+       def test_context_to_count(self):
+              contexts = np.array([[4, 3, 4],
+                                   [0, 0, 3],
+                                   [1, 1, 3],
+                                   [1, 4, 5],
+                                   [5, 3, 3],
+                                   [2, 1, 0],
+                                   [3, 2, 3],
+                                   [3, 1, 4],
+                                   [4, 2, 5],
+                                   [3, 1, 0]])
+              
+              expected_counts = np.array([[0, 0, 0, 1, 2],
+                                          [2, 0, 0, 1, 0],
+                                          [0, 2, 0, 1, 0],
+                                          [0, 1, 0, 0, 2],
+                                          [0, 0, 0, 2, 1],
+                                          [1, 1, 1, 0, 0],
+                                          [0, 0, 1, 2, 0],
+                                          [0, 1, 0, 1, 1],
+                                          [0, 0, 1, 0, 2],
+                                          [1, 1, 0, 1, 0]])
+              
+              counts = cw.context_to_count(contexts, 4)
+              print(counts)
+
+              self.assertTrue((counts == expected_counts).all()) 
+              self.assertEqual(counts.sum(), 30)
+
+              contexts = np.random.choice([0, 1, 2, 3, 4], size=(1000, 10))
+              counts = cw.context_to_count(contexts, 3)
+              self.assertEqual(counts.sum(), 10000)
+              self.assertEqual(counts.shape, (1000, 4))
+              self.assertLess(counts.sum(axis=0)[-1], 4000 + 300)
+              self.assertGreater(counts.sum(axis=0)[-1], 4000 - 300)
 
 if __name__ == "__main__":
     # unittest.main()
     tcd = TestContextDistribs()
-    tcd.test_indep_estimate_from_two_tuple_arr()
+    tcd.test_word_window_context_distribs()

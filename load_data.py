@@ -91,19 +91,21 @@ def get_keys_for_name(parent, name, dtype=lambda x: x):
     for fl in file_list:
         match = re.search('_(\d+)\.pkl', fl)
         key = match.group(1)
-        print(key)
+        # print(key)
         keys.append(dtype(key))
     
     return keys
 
 
 
-def read_one_by_one(name, dtype=lambda x: x):
+def read_one_by_one(name, keys=None, parent="objects", dtype=lambda x: x):
     full_dct = {}
 
-    keys = get_keys_for_name(name)
+    if keys is None:
+        keys = get_keys_for_name(parent, name)
+
     for key in keys:
-        val = read_by_key(name, key)
+        val = read_by_key(name, key, parent)
         full_dct[key] = val
 
     return full_dct
